@@ -1,0 +1,15 @@
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+*.swp
+*.log
+.env
+.venv/
+build/
+dist/
+.git/
+.gitignore
+README.md
+run.sh
+qriscuy.db

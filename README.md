@@ -79,53 +79,87 @@ docker run --rm -p 8000:8000 --env-file .env qriscuy
 ---
 
 
+
+---
+
 🔎 Lihat `prd_qriscuy.md` untuk detail fitur & scope.
 🧑‍💻 Lihat `project_rules.md` untuk aturan kontribusi & debugging.
+
+---
+
+## 🚦 Jalankan & Uji API
+
+1. **Cek status server**
+   ```bash
    curl -H "X-API-Key: ubah-api-key" http://localhost:8000/health
    ```
-6. **Jelajahi API**
-   - Dokumentasi interaktif: `http://localhost:8000/docs`
-   - Endpoint metrics Prometheus: `http://localhost:8000/metrics`
-7. **Hentikan server**: tekan `Ctrl+C` pada terminal yang menjalankan `run.sh`.
+   Jika sukses, akan mendapat response status OK.
+
+2. **Jelajahi API**
+   - Dokumentasi interaktif: [http://localhost:8000/docs](http://localhost:8000/docs)
+   - Endpoint metrics Prometheus: [http://localhost:8000/metrics](http://localhost:8000/metrics)
+
+3. **Hentikan server**
+   - Tekan `Ctrl+C` pada terminal yang menjalankan `run.sh`.
 
 > **Catatan**: Jika `PYTHON_BIN` tidak mengarah ke Python 3.11, script akan berhenti dan meminta Anda memasang versi yang benar.
 
-## Variabel Lingkungan Penting
-- `API_KEY`: digunakan untuk header `X-API-Key` (wajib diganti di produksi).
-- `HMAC_SECRET`: kunci HMAC untuk tanda tangan fingerprint (wajib diganti).
-- `QRISCUY_MODE`: `FAST` atau `SAFE`.
-- `DATABASE_URL`: default SQLite lokal (`sqlite+aiosqlite:///./qriscuy.db`). Untuk runtime Docker gunakan path `/app/data/qriscuy.db`.
-- `ALLOWED_ORIGINS`: daftar CORS (JSON array) jika menggunakan frontend berbeda domain.
+---
 
-## Endpoint Utama
-- `POST /v1/qr` — generate invoice + QR baru dengan Tag 62 fingerprint & signature.
-- `POST /v1/scan` — callback ketika QR discan oleh client terkendali.
-- `GET /v1/invoices/{id}` — cek status invoice.
-- `POST /v1/invoices/{id}/confirm` — konfirmasi manual (mode SAFE) menjadi `SUCCESS` atau `REJECTED`.
-- `GET /health` — health check sederhana.
+## 🔑 Variabel Lingkungan Penting
 
-## Alur Singkat
-1. User kirim payload QRIS asli ke `/v1/qr` → sistem menyisipkan Tag 62 (`FP`, `SIG`, `TS`, `ALG`).
-2. Client pemindai mengirim `/v1/scan` dengan fingerprint & signature.
-3. Mode `FAST` → invoice otomatis `SUCCESS`. Mode `SAFE` → status tetap `SCANNED` hingga konfirmasi manual.
+| Nama             | Keterangan                                                                 |
+|------------------|----------------------------------------------------------------------------|
+| `API_KEY`        | Digunakan untuk header `X-API-Key` (WAJIB diganti di produksi)             |
+| `HMAC_SECRET`    | Kunci HMAC untuk tanda tangan fingerprint (WAJIB diganti)                  |
+| `QRISCUY_MODE`   | `FAST` atau `SAFE`                                                         |
+| `DATABASE_URL`   | Default SQLite lokal (`sqlite+aiosqlite:///./qriscuy.db`). Untuk Docker: `/app/data/qriscuy.db` |
+| `ALLOWED_ORIGINS`| Daftar CORS (JSON array) jika menggunakan frontend berbeda domain          |
 
-## Verifikasi Manual
-1. `POST /v1/qr` → pastikan respons memuat `payload`, `qr_png_base64`, `fingerprint_b64`, `signature_hex`, `crc`.
-2. Decode `payload` dan cek Tag 62 berisi sub-tag `01..05`, CRC valid.
-3. `POST /v1/scan` dengan data respons tahap 1 → status berubah (`SCANNED` atau `SUCCESS` tergantung mode).
-4. Mode `SAFE`: panggil `/v1/invoices/{id}/confirm` dengan `{"action":"SUCCESS"}` → status `SUCCESS`.
-5. Uji TTL: tunggu > `settings.ttl_seconds` lalu ulangi `/v1/scan` → respon error `ERR_FP_EXPIRED`.
-6. Uji replay: kirim `/v1/scan` dua kali berturut → panggilan kedua mengembalikan `ERR_REPLAY`.
+---
 
-## Rencana Rollback
-- Hentikan proses `uvicorn` berjalan.
-- Restore backup file konfigurasi dan database `qriscuy.db` (atau hapus untuk reset).
-- Jalankan ulang `./run.sh` untuk memastikan semua dependensi bersih.
+## 📡 Endpoint Utama
 
-## Monitoring & Observability
-- Semua request dicatat dalam log JSON (`logger` `qriscuy.http` dan `qriscuy.api`) beserta status kode dan durasi.
-- Kesalahan layanan (`ServiceError`) serta exception lain otomatis tercatat dengan stack trace.
-- Endpoint `GET /metrics` mengekspor metrik Prometheus (`qriscuy_http_requests_total`, `qriscuy_http_request_duration_seconds`, `qriscuy_service_errors_total`). Integrasikan dengan Prometheus atau cek cepat via `curl localhost:8000/metrics`.
+- `POST /v1/qr` — generate invoice + QR baru dengan Tag 62 fingerprint & signature
+- `POST /v1/scan` — callback ketika QR discan oleh client terkendali
+- `GET /v1/invoices/{id}` — cek status invoice
+- `POST /v1/invoices/{id}/confirm` — konfirmasi manual (mode SAFE) menjadi `SUCCESS` atau `REJECTED`
+- `GET /health` — health check sederhana
+
+---
+
+## 🔄 Alur Singkat
+
+1. User kirim payload QRIS asli ke `/v1/qr` → sistem menyisipkan Tag 62 (`FP`, `SIG`, `TS`, `ALG`)
+2. Client pemindai mengirim `/v1/scan` dengan fingerprint & signature
+3. Mode `FAST` → invoice otomatis `SUCCESS`. Mode `SAFE` → status tetap `SCANNED` hingga konfirmasi manual
+
+---
+
+## 📝 Verifikasi Manual
+
+1. `POST /v1/qr` → pastikan respons memuat `payload`, `qr_png_base64`, `fingerprint_b64`, `signature_hex`, `crc`
+2. Decode `payload` dan cek Tag 62 berisi sub-tag `01..05`, CRC valid
+3. `POST /v1/scan` dengan data respons tahap 1 → status berubah (`SCANNED` atau `SUCCESS` tergantung mode)
+4. Mode `SAFE`: panggil `/v1/invoices/{id}/confirm` dengan `{"action":"SUCCESS"}` → status `SUCCESS`
+5. Uji TTL: tunggu > `settings.ttl_seconds` lalu ulangi `/v1/scan` → respon error `ERR_FP_EXPIRED`
+6. Uji replay: kirim `/v1/scan` dua kali berturut → panggilan kedua mengembalikan `ERR_REPLAY`
+
+---
+
+## ⏪ Rencana Rollback
+
+- Hentikan proses `uvicorn` berjalan
+- Restore backup file konfigurasi dan database `qriscuy.db` (atau hapus untuk reset)
+- Jalankan ulang `./run.sh` untuk memastikan semua dependensi bersih
+
+---
+
+## 📊 Monitoring & Observability
+
+- Semua request dicatat dalam log JSON (`logger` `qriscuy.http` dan `qriscuy.api`) beserta status kode dan durasi
+- Kesalahan layanan (`ServiceError`) serta exception lain otomatis tercatat dengan stack trace
+- Endpoint `GET /metrics` mengekspor metrik Prometheus (`qriscuy_http_requests_total`, `qriscuy_http_request_duration_seconds`, `qriscuy_service_errors_total`). Integrasikan dengan Prometheus atau cek cepat via `curl localhost:8000/metrics`
 
 ## Deploy via Docker
 1. **Build image**

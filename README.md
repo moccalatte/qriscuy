@@ -78,10 +78,6 @@ docker run --rm -p 8000:8000 --env-file .env qriscuy
 
 ---
 
-
-
----
-
 🔎 Lihat `prd_qriscuy.md` untuk detail fitur & scope.
 🧑‍💻 Lihat `project_rules.md` untuk aturan kontribusi & debugging.
 
